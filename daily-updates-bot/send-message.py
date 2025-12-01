@@ -11,7 +11,7 @@ TOPIC = "daily-updates"     # topic inside the stream
 
 MESSAGE_TEXT = """
 👋 **Daily Update Time!**
-Please share what you worked on yesterday, what you're doing today, and if you’re blocked on anything.
+Please share what you're doing today.
 """
 
 def send_message():
