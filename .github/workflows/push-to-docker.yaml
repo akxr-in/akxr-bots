@@ -28,5 +28,4 @@ jobs:
           context: ./daily-updates-bot
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/akxr-bots:${{ steps.git-sha.outputs.sha }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/akxr-bots:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/daily-updates-bot:${{ steps.git-sha.outputs.sha }}
