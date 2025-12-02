@@ -50,7 +50,7 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GH_TOKEN }}
-          path: gitops-repo
+          path: akxr-gitops
           commit-message: "Update daily-updates-bot image tag to ${{ steps.git-sha.outputs.sha }}"
           title: "Update daily-updates-bot image tag to ${{ steps.git-sha.outputs.sha }}"
           body: |
