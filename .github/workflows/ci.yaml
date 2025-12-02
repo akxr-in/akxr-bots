@@ -1,0 +1,67 @@
+name: build, push and update image tag in gitops repository
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get git SHA
+        id: git-sha
+        run: echo "sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image to Docker Hub
+        uses: docker/build-push-action@v3
+        with:
+          context: ./daily-updates-bot
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/daily-updates-bot:${{ steps.git-sha.outputs.sha }}
+
+      - name: Update GitOps repository
+        uses: actions/checkout@v3
+        with:
+          repository: thisisamank/akxr-gitops
+          token: ${{ secrets.GH_TOKEN }}
+          path: akxr-gitops
+
+      - name: Update image tag in values.yaml
+        run: |
+          cd akxr-gitops
+          sed -i "s|tag: \".*\"|tag: \"${{ steps.git-sha.outputs.sha }}\"|g" environments/production/daily-updates-bot/values.yaml
+
+          # Configure git
+          git config --local user.email "bot@akxr.in"
+          git config --local user.name "akxr-bot"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          path: gitops-repo
+          commit-message: "Update daily-updates-bot image tag to ${{ steps.git-sha.outputs.sha }}"
+          title: "Update daily-updates-bot image tag to ${{ steps.git-sha.outputs.sha }}"
+          body: |
+            This PR updates the daily-updates-bot image tag to use the latest commit SHA.
+
+            **Changes:**
+
+            - Updated image tag from `latest` to `${{ steps.git-sha.outputs.sha }}`
+            - Image: `${{ secrets.DOCKERHUB_USERNAME }}/daily-updates-bot:${{ steps.git-sha.outputs.sha }}`
+
+            **Commit:** ${{ github.sha }}
+            **Branch:** ${{ github.ref_name }}
+          branch: update-daily-updates-bot-image-${{ steps.git-sha.outputs.sha }}
+          delete-branch: true
