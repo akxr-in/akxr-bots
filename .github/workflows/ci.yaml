@@ -43,8 +43,8 @@ jobs:
           sed -i "s|tag: \".*\"|tag: \"${{ steps.git-sha.outputs.sha }}\"|g" environments/production/daily-updates-bot/values.yaml
 
           # Configure git
-          git config --local user.email "bot@akxr.in"
-          git config --local user.name "akxr-bot"
+          git config --global user.email "bot@akxr.in"
+          git config --global user.name "akxr-bot"
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
