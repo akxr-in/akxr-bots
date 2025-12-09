@@ -20,7 +20,7 @@ STREAM_NAME = "core-team"     # channel/stream name
 TOPIC = "daily-updates"     # topic inside the stream
 
 MESSAGE_TEXT = """
-@**all** 👋 **Daily Update Time!**
+@**all** 👋 **Daily Update!**
 Please share what you're doing today.
 """
 
