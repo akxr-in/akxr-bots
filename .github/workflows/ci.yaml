@@ -16,19 +16,16 @@ jobs:
         id: git-sha
         run: echo "sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to Registry
+        run: |
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login registry.pixr.in -u nexus --password-stdin
 
-      - name: Build and push Docker image to Docker Hub
-        uses: docker/build-push-action@v3
-        with:
-          context: ./daily-updates-bot
-          push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/daily-updates-bot:${{ steps.git-sha.outputs.sha }}
+      - name: Build and Push
+        run: |
+          docker build -t registry.pixr.in/daily-updates-bot:${{ steps.git-sha.outputs.sha }} ./daily-updates-bot
+          docker push registry.pixr.in/daily-updates-bot:${{ steps.git-sha.outputs.sha }}
+          docker tag registry.pixr.in/daily-updates-bot:${{ steps.git-sha.outputs.sha }} registry.pixr.in/daily-updates-bot:latest
+          docker push registry.pixr.in/daily-updates-bot:latest
 
       - name: Update GitOps repository
         uses: actions/checkout@v3
@@ -59,7 +56,7 @@ jobs:
             **Changes:**
 
             - Updated image tag from `latest` to `${{ steps.git-sha.outputs.sha }}`
-            - Image: `${{ secrets.DOCKERHUB_USERNAME }}/daily-updates-bot:${{ steps.git-sha.outputs.sha }}`
+            - Image: `registry.pixr.in/daily-updates-bot:${{ steps.git-sha.outputs.sha }}`
 
             **Commit:** ${{ github.sha }}
             **Branch:** ${{ github.ref_name }}
