@@ -102,22 +102,33 @@ def update_google_sheet(updates):
     # -------- HEADER (ROW 1) --------
     if not all_values:
         log.info("Sheet is empty, initializing header")
-        sheet.update("A1", [["Date"]])
+        sheet.update("A1", [["DATE"]])
     
     header = sheet.row_values(1)
     
     # If Date column is missing, insert it at column A
-    if not header or header[0] != "Date":
+    if not header or header[0].upper() != "DATE":
         log.info("Date column missing, inserting at column A")
         sheet.insert_cols([[]], col=1)
-        sheet.update_cell(1, 1, "Date")
-        header = ["Date"] + header
+        sheet.update_cell(1, 1, "DATE")
+        header = ["DATE"] + header
+
+    # Create a case-insensitive lookup for existing headers
+    header_upper = [h.upper() for h in header]
 
     for user in updates:
-        if user not in header:
-            log.info("Adding new user column: %s", user)
-            sheet.update_cell(1, len(header) + 1, user)
-            header.append(user)
+        user_upper = user.upper()
+        if user_upper not in header_upper:
+            log.info("Adding new user column: %s", user_upper)
+            sheet.update_cell(1, len(header) + 1, user_upper)
+            header.append(user_upper)
+            header_upper.append(user_upper)
+
+    # Apply bold formatting to the header row
+    num_cols = len(header)
+    if num_cols > 0:
+        end_col = chr(ord('A') + num_cols - 1) if num_cols <= 26 else 'Z'
+        sheet.format(f"A1:{end_col}1", {"textFormat": {"bold": True}})
 
     # -------- DATE ROW --------
     dates = sheet.col_values(1)
@@ -133,9 +144,10 @@ def update_google_sheet(updates):
     # -------- UPDATE CELLS --------
     log.info("Updating status for %d users", len(updates))
     for user, content in updates.items():
-        col_idx = header.index(user) + 1
+        user_upper = user.upper()
+        col_idx = header_upper.index(user_upper) + 1
         sheet.update_cell(row_idx, col_idx, content)
-        log.info("  ✓ %s (row %d, col %d): %s", user, row_idx, col_idx, content[:50])
+        log.info("  ✓ %s (row %d, col %d): %s", user_upper, row_idx, col_idx, content[:50])
 
 
 def main():
