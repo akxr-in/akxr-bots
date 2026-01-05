@@ -103,11 +103,15 @@ def update_google_sheet(updates):
     if not all_values:
         log.info("Sheet is empty, initializing header")
         sheet.update("A1", [["Date"]])
-
+    
     header = sheet.row_values(1)
-    if header and header[0] != "Date":
+    
+    # If Date column is missing, insert it at column A
+    if not header or header[0] != "Date":
+        log.info("Date column missing, inserting at column A")
+        sheet.insert_cols([[]], col=1)
         sheet.update_cell(1, 1, "Date")
-        header[0] = "Date"
+        header = ["Date"] + header
 
     for user in updates:
         if user not in header:
