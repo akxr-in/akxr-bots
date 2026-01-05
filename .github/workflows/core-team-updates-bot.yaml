@@ -1,4 +1,4 @@
-name: build, push and update image tag in gitops repository
+name: build, push and update image tag for core team update bot
 
 on:
   push:
