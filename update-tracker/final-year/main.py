@@ -1,6 +1,7 @@
 import os
 import json
 import datetime
+import logging
 import pytz
 import zulip
 import gspread
@@ -8,6 +9,13 @@ from google.oauth2.service_account import Credentials
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger(__name__)
 
 # ---------- CONFIG ----------
 ZULIP_SITE = os.environ["ZULIP_SITE"]
@@ -19,7 +27,6 @@ TOPIC_NAME = os.environ["ZULIP_TOPIC"]
 SPREADSHEET_ID = os.environ["GSHEET_ID"]
 
 TIMEZONE = "Asia/Kolkata"
-STATUS_TEXT = "did something"
 # ----------------------------
 
 
@@ -29,7 +36,8 @@ def today_label():
     ).strftime("%-d %b")
 
 
-def fetch_zulip_users():
+def fetch_zulip_updates():
+    log.info("Connecting to Zulip at %s", ZULIP_SITE)
     client = zulip.Client(
         site=ZULIP_SITE,
         email=ZULIP_EMAIL,
@@ -37,26 +45,41 @@ def fetch_zulip_users():
     )
 
     tz = pytz.timezone(TIMEZONE)
-    start = datetime.datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_day = datetime.datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    start_timestamp = int(start_of_day.timestamp())
 
+    log.info("Fetching messages from #%s > %s", CHANNEL_NAME, TOPIC_NAME)
     result = client.get_messages({
-        "anchor": int(start.timestamp()),
-        "num_before": 0,
-        "num_after": 1000,
+        "anchor": "newest",
+        "num_before": 1000,
+        "num_after": 0,
         "narrow": [
             {"operator": "stream", "operand": CHANNEL_NAME},
             {"operator": "topic", "operand": TOPIC_NAME},
         ],
     })
 
-    users = set()
+    total_messages = len(result.get("messages", []))
+    log.info("Fetched %d total messages from topic", total_messages)
+
+    updates = {}
     for msg in result["messages"]:
-        users.add(msg["sender_full_name"])
+        if msg["timestamp"] >= start_timestamp:
+            user = msg["sender_full_name"]
+            content = msg["content"].strip()
+            # Keep the latest message if user posted multiple times
+            updates[user] = content
 
-    return list(users)
+    log.info("Found %d users who posted today: %s", len(updates), list(updates.keys()))
+    return updates
 
 
-def update_google_sheet(users):
+def update_google_sheet(updates):
+    if not updates:
+        log.info("No updates to record, skipping sheet update")
+        return
+
+    log.info("Connecting to Google Sheets")
     creds = Credentials.from_service_account_info(
         json.loads(os.environ["GOOGLE_CREDS"]),
         scopes=["https://www.googleapis.com/auth/spreadsheets"],
@@ -64,18 +87,25 @@ def update_google_sheet(users):
 
     gc = gspread.authorize(creds)
     sheet = gc.open_by_key(SPREADSHEET_ID).sheet1
+    log.info("Opened spreadsheet: %s", SPREADSHEET_ID)
 
     all_values = sheet.get_all_values()
     today = today_label()
+    log.info("Today's date label: %s", today)
 
     # -------- HEADER (ROW 1) --------
     if not all_values:
-        sheet.update("A1", [[""]])
+        log.info("Sheet is empty, initializing header")
+        sheet.update("A1", [["Date"]])
 
     header = sheet.row_values(1)
+    if header and header[0] != "Date":
+        sheet.update_cell(1, 1, "Date")
+        header[0] = "Date"
 
-    for user in users:
+    for user in updates:
         if user not in header:
+            log.info("Adding new user column: %s", user)
             sheet.update_cell(1, len(header) + 1, user)
             header.append(user)
 
@@ -84,19 +114,25 @@ def update_google_sheet(users):
 
     if today in dates:
         row_idx = dates.index(today) + 1
+        log.info("Found existing row for today at row %d", row_idx)
     else:
         row_idx = len(dates) + 1
+        log.info("Creating new row for today at row %d", row_idx)
         sheet.update_cell(row_idx, 1, today)
 
     # -------- UPDATE CELLS --------
-    for user in users:
+    log.info("Updating status for %d users", len(updates))
+    for user, content in updates.items():
         col_idx = header.index(user) + 1
-        sheet.update_cell(row_idx, col_idx, STATUS_TEXT)
+        sheet.update_cell(row_idx, col_idx, content)
+        log.info("  ✓ %s (row %d, col %d): %s", user, row_idx, col_idx, content[:50])
 
 
 def main():
-    users = fetch_zulip_users()
-    update_google_sheet(users)
+    log.info("=== Update Tracker Started ===")
+    updates = fetch_zulip_updates()
+    update_google_sheet(updates)
+    log.info("=== Update Tracker Finished ===")
 
 
 if __name__ == "__main__":
