@@ -2,6 +2,7 @@ import os
 import json
 import datetime
 import logging
+import re
 import pytz
 import zulip
 import gspread
@@ -28,6 +29,11 @@ SPREADSHEET_ID = os.environ["GSHEET_ID"]
 
 TIMEZONE = "Asia/Kolkata"
 # ----------------------------
+
+
+def strip_html(text):
+    """Remove HTML tags from text."""
+    return re.sub(r"<[^>]+>", "", text).strip()
 
 
 def today_label():
@@ -66,7 +72,7 @@ def fetch_zulip_updates():
     for msg in result["messages"]:
         if msg["timestamp"] >= start_timestamp:
             user = msg["sender_full_name"]
-            content = msg["content"].strip()
+            content = strip_html(msg["content"])
             # Keep the latest message if user posted multiple times
             updates[user] = content
 
