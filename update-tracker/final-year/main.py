@@ -153,6 +153,11 @@ def update_google_sheet(updates):
 def main():
     log.info("=== Update Tracker Started ===")
     updates = fetch_zulip_updates()
+    
+    if not updates:
+        log.info("No messages found for today. Exiting.")
+        return
+    
     update_google_sheet(updates)
     log.info("=== Update Tracker Finished ===")
 
