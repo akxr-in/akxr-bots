@@ -1,0 +1,66 @@
+name: build, push and update image tag for junior batch update tracker
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'update-tracker/junior-batch/**'
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Get git SHA
+        id: git-sha
+        run: echo "sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+
+      - name: Login to Registry
+        run: |
+          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login registry.pixr.in -u nexus --password-stdin
+
+      - name: Build and Push
+        run: |
+          docker build -t registry.pixr.in/junior-batch-update-tracker:${{ steps.git-sha.outputs.sha }} ./update-tracker/junior-batch
+          docker push registry.pixr.in/junior-batch-update-tracker:${{ steps.git-sha.outputs.sha }}
+          docker tag registry.pixr.in/junior-batch-update-tracker:${{ steps.git-sha.outputs.sha }} registry.pixr.in/junior-batch-update-tracker:latest
+          docker push registry.pixr.in/junior-batch-update-tracker:latest
+
+      - name: Update GitOps repository
+        uses: actions/checkout@v3
+        with:
+          repository: thisisamank/akxr-gitops
+          token: ${{ secrets.GH_TOKEN }}
+          path: akxr-gitops
+
+      - name: Update image tag in values.yaml
+        run: |
+          cd akxr-gitops
+          sed -i "s|tag: \".*\"|tag: \"${{ steps.git-sha.outputs.sha }}\"|g" environments/production/junior-batch-update-tracker/values.yaml
+
+          # Configure git
+          git config --global user.email "bot@akxr.in"
+          git config --global user.name "akxr-bot"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          path: akxr-gitops
+          commit-message: "Update junior-batch-update-tracker image tag to ${{ steps.git-sha.outputs.sha }}"
+          title: "Update junior-batch-update-tracker image tag to ${{ steps.git-sha.outputs.sha }}"
+          body: |
+            This PR updates the junior-batch-update-tracker image tag to use the latest commit SHA.
+
+            **Changes:**
+
+            - Updated image tag from `latest` to `${{ steps.git-sha.outputs.sha }}`
+            - Image: `registry.pixr.in/junior-batch-update-tracker:${{ steps.git-sha.outputs.sha }}`
+
+            **Commit:** ${{ github.sha }}
+            **Branch:** ${{ github.ref_name }}
+          branch: update-junior-batch-update-tracker-image-${{ steps.git-sha.outputs.sha }}
+          delete-branch: true
