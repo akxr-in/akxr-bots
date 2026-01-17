@@ -1,0 +1,62 @@
+{
+  "batches": [
+    {
+      "name": "akxr final year cohort",
+      "channel": "akxr final year cohort",
+      "students": [
+        {"username": "user24@chat.akxr.in", "display_name": "Atharva Gupta"},
+        {"username": "user25@chat.akxr.in", "display_name": "Amitesh"},
+        {"username": "user27@chat.akxr.in", "display_name": "prem"},
+        {"username": "user28@chat.akxr.in", "display_name": "NAGESH MAKANAPUR"},
+        {"username": "user30@chat.akxr.in", "display_name": "Akshat vats"},
+        {"username": "user31@chat.akxr.in", "display_name": "Suhas RG"},
+        {"username": "user32@chat.akxr.in", "display_name": "Arpit Agrawal"},
+        {"username": "user34@chat.akxr.in", "display_name": "Sachin kumar"},
+        {"username": "user36@chat.akxr.in", "display_name": "Yatin Rana"},
+        {"username": "user37@chat.akxr.in", "display_name": "Anshuman"},
+        {"username": "user38@chat.akxr.in", "display_name": "jayesh patil"},
+        {"username": "user39@chat.akxr.in", "display_name": "Aakash Kumar"},
+        {"username": "user40@chat.akxr.in", "display_name": "Ayush Kumar"},
+        {"username": "user42@chat.akxr.in", "display_name": "Mohammed Owais"},
+        {"username": "user43@chat.akxr.in", "display_name": "Aditya Yadav"},
+        {"username": "user44@chat.akxr.in", "display_name": "Rahul Sharma"},
+        {"username": "user45@chat.akxr.in", "display_name": "Bhavya"},
+        {"username": "user46@chat.akxr.in", "display_name": "Sahil"},
+        {"username": "user47@chat.akxr.in", "display_name": "Priyanshu Gautam"},
+        {"username": "user48@chat.akxr.in", "display_name": "Shreya Chopra"},
+        {"username": "user51@chat.akxr.in", "display_name": "Parth Goel"},
+        {"username": "user53@chat.akxr.in", "display_name": "Yashraj"},
+        {"username": "user54@chat.akxr.in", "display_name": "DEEPALI AGGARWAL"},
+        {"username": "user58@chat.akxr.in", "display_name": "Tanishq Sethi"},
+        {"username": "user75@chat.akxr.in", "display_name": "Sakshi Arya"},
+        {"username": "user77@chat.akxr.in", "display_name": "Parthsaarthie Sharma"},
+        {"username": "user81@chat.akxr.in", "display_name": "bhumi rajbhar"},
+        {"username": "user82@chat.akxr.in", "display_name": "Mohammed Sufyan B"}
+      ]
+    },
+    {
+      "name": "akxr interview prep cohort",
+      "channel": "akxr interview prep cohort",
+      "students": [
+        {"username": "user55@chat.akxr.in", "display_name": "Devvrath Giri"},
+        {"username": "user56@chat.akxr.in", "display_name": "Parth Sharma"},
+        {"username": "user65@chat.akxr.in", "display_name": "Varun Bindal"},
+        {"username": "user76@chat.akxr.in", "display_name": "Rishabh Tripathi"},
+        {"username": "user80@chat.akxr.in", "display_name": "Lavya Agrawal"}
+      ]
+    },
+    {
+      "name": "akxr junior batch",
+      "channel": "akxr junior batch",
+      "students": [
+        {"username": "user66@chat.akxr.in", "display_name": "Ishika Verma"},
+        {"username": "user67@chat.akxr.in", "display_name": "Garv Goel"},
+        {"username": "user68@chat.akxr.in", "display_name": "Shlok Rastogi"},
+        {"username": "user69@chat.akxr.in", "display_name": "DAWAR"},
+        {"username": "user70@chat.akxr.in", "display_name": "MAHESH KUMAR"},
+        {"username": "user73@chat.akxr.in", "display_name": "Shruti Singh"},
+        {"username": "user74@chat.akxr.in", "display_name": "Diksha Bothra"}
+      ]
+    }
+  ]
+}
