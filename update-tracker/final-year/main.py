@@ -39,7 +39,12 @@ MENTION_MESSAGE = os.environ.get(
     "MENTION_MESSAGE",
     "Reminder: Please post your daily update."
 )
-# ----------------------------
+
+# ---------- TEST MODE ----------
+# Set to True to redirect all DMs to TEST_DM_RECIPIENT instead of actual students
+TEST_MODE = False
+TEST_DM_RECIPIENT = "user8@chat.akxr.in"  # Aman
+# --------------------------------
 
 
 def strip_html(text: str) -> str:
@@ -160,9 +165,16 @@ def send_dm(client: zulip.Client, username: str, channel: str, topic: str) -> bo
     """Send private message to user. Returns True on success."""
     message = DM_MESSAGE.format(channel=channel, topic=topic)
 
+    # In test mode, redirect all DMs to test recipient
+    recipient = username
+    if TEST_MODE:
+        message = f"[TEST - Original recipient: {username}]\n\n{message}"
+        recipient = TEST_DM_RECIPIENT
+        log.info("TEST MODE: Redirecting DM from %s to %s", username, recipient)
+
     result = client.send_message({
         "type": "private",
-        "to": [username],
+        "to": [recipient],
         "content": message,
     })
 
@@ -170,7 +182,7 @@ def send_dm(client: zulip.Client, username: str, channel: str, topic: str) -> bo
         log.error("DM failed for %s: %s", username, result.get("msg"))
         return False
 
-    log.info("Sent DM to %s", username)
+    log.info("Sent DM to %s", recipient)
     return True
 
 
@@ -187,12 +199,22 @@ def send_channel_mention(
     mentions = " ".join(f'@**{s["display_name"]}**' for s in students)
     content = f"{mentions} {MENTION_MESSAGE}"
 
-    result = client.send_message({
-        "type": "stream",
-        "to": channel,
-        "topic": topic,
-        "content": content,
-    })
+    # In test mode, send as DM to test recipient instead of channel
+    if TEST_MODE:
+        test_content = f"[TEST - Channel mention for #{channel} > {topic}]\n\n{content}"
+        result = client.send_message({
+            "type": "private",
+            "to": [TEST_DM_RECIPIENT],
+            "content": test_content,
+        })
+        log.info("TEST MODE: Sent channel mention as DM to %s", TEST_DM_RECIPIENT)
+    else:
+        result = client.send_message({
+            "type": "stream",
+            "to": channel,
+            "topic": topic,
+            "content": content,
+        })
 
     if result.get("result") != "success":
         log.error("Channel mention failed: %s", result.get("msg"))
