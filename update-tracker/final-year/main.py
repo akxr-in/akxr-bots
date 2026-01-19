@@ -30,6 +30,14 @@ TOPIC_NAME = os.environ["ZULIP_TOPIC"]
 SPREADSHEET_ID = os.environ["GSHEET_ID"]
 
 TIMEZONE = "Asia/Kolkata"
+
+# DAY BOUNDARY: 5 AM - 5 AM (not midnight)
+# Students work late, so updates posted 12 AM - 5 AM count for the previous day.
+# Reminder windows:
+#   - DMs: 7 PM only
+#   - Public mentions: 7 PM - 12 AM
+#   - Sheet updates: Every run
+
 ROSTER_PATH = os.environ.get("ROSTER_PATH", "roster.json")
 DM_MESSAGE = os.environ.get(
     "DM_MESSAGE",
@@ -53,14 +61,27 @@ def strip_html(text: str) -> str:
 
 
 def today_label() -> str:
-    return datetime.datetime.now(
-        pytz.timezone(TIMEZONE)
-    ).strftime("%-d %b")
+    """Return human-readable date label for 'today' (respects 5 AM boundary)."""
+    tz = pytz.timezone(TIMEZONE)
+    now = datetime.datetime.now(tz)
+
+    # If before 5 AM, use yesterday's date
+    if now.hour < 5:
+        now = now - datetime.timedelta(days=1)
+
+    return now.strftime("%-d %b")
 
 
 def today_date_str() -> str:
-    """Return YYYY-MM-DD for today in configured timezone."""
-    return datetime.datetime.now(pytz.timezone(TIMEZONE)).strftime("%Y-%m-%d")
+    """Return YYYY-MM-DD for 'today' (respects 5 AM boundary)."""
+    tz = pytz.timezone(TIMEZONE)
+    now = datetime.datetime.now(tz)
+
+    # If before 5 AM, use yesterday's date
+    if now.hour < 5:
+        now = now - datetime.timedelta(days=1)
+
+    return now.strftime("%Y-%m-%d")
 
 
 def load_roster(path: str) -> dict:
@@ -83,12 +104,22 @@ def create_zulip_client() -> zulip.Client:
 
 
 def get_users_who_posted_today(client: zulip.Client, channel: str, topic: str) -> Set[str]:
-    """Fetch messages from today and return set of sender_email values."""
+    """Fetch messages from today and return set of sender_email values.
+
+    'Today' is defined as 5 AM - 5 AM (next day) to account for late-night work.
+    """
     tz = pytz.timezone(TIMEZONE)
-    start_of_day = datetime.datetime.now(tz).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
+    now = datetime.datetime.now(tz)
+
+    # If current time is before 5 AM, use yesterday's 5 AM as start
+    if now.hour < 5:
+        start_of_day = now.replace(hour=5, minute=0, second=0, microsecond=0) - datetime.timedelta(days=1)
+    else:
+        # Otherwise use today's 5 AM as start
+        start_of_day = now.replace(hour=5, minute=0, second=0, microsecond=0)
+
     start_timestamp = int(start_of_day.timestamp())
+    log.info("Day starts at: %s", start_of_day.strftime("%Y-%m-%d %H:%M:%S"))
 
     log.info("Fetching messages from #%s > %s", channel, topic)
 
@@ -238,6 +269,10 @@ def process_batch(
 
     log.info("Processing batch: %s (channel: %s, %d students)", batch_name, channel, len(students))
 
+    # Get current hour in IST
+    current_hour = datetime.datetime.now(pytz.timezone(TIMEZONE)).hour
+    log.info("Current hour (IST): %d", current_hour)
+
     # Get who posted today
     posted_users = get_users_who_posted_today(zulip_client, channel, TOPIC_NAME)
 
@@ -269,18 +304,30 @@ def process_batch(
         batch_name, posted_count, len(to_dm), len(to_mention)
     )
 
-    # Send DMs
-    for student in to_dm:
-        username = student["username"]
-        if send_dm(zulip_client, username, channel, TOPIC_NAME):
-            record_dm_sent(dm_sheet, batch_name, today, username)
+    # Send DMs only at 7 PM IST
+    if current_hour == 19:
+        log.info("DM window active (7 PM). Sending DMs.")
+        for student in to_dm:
+            username = student["username"]
+            if send_dm(zulip_client, username, channel, TOPIC_NAME):
+                record_dm_sent(dm_sheet, batch_name, today, username)
+    elif to_dm:
+        log.info("Outside DM window (7 PM only). Skipping %d DMs.", len(to_dm))
 
-    # Send public mention
-    if to_mention:
-        send_channel_mention(zulip_client, channel, TOPIC_NAME, to_mention)
+    # Send public mentions only between 7 PM - 11:59 PM IST
+    if 19 <= current_hour <= 23:
+        if to_mention:
+            log.info("Mention window active (7 PM - 12 AM). Sending public mentions.")
+            send_channel_mention(zulip_client, channel, TOPIC_NAME, to_mention)
+    elif to_mention:
+        log.info("Outside mention window (7 PM - 12 AM). Skipping %d mentions.", len(to_mention))
 
 
 def fetch_zulip_updates() -> dict:
+    """Legacy function for backwards compatibility.
+
+    'Today' is defined as 5 AM - 5 AM (next day) to account for late-night work.
+    """
     log.info("Connecting to Zulip at %s", ZULIP_SITE)
 
     client = zulip.Client(
@@ -290,9 +337,15 @@ def fetch_zulip_updates() -> dict:
     )
 
     tz = pytz.timezone(TIMEZONE)
-    start_of_day = datetime.datetime.now(tz).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
+    now = datetime.datetime.now(tz)
+
+    # If current time is before 5 AM, use yesterday's 5 AM as start
+    if now.hour < 5:
+        start_of_day = now.replace(hour=5, minute=0, second=0, microsecond=0) - datetime.timedelta(days=1)
+    else:
+        # Otherwise use today's 5 AM as start
+        start_of_day = now.replace(hour=5, minute=0, second=0, microsecond=0)
+
     start_timestamp = int(start_of_day.timestamp())
 
     log.info("Fetching messages from #%s > %s", CHANNEL_NAME, TOPIC_NAME)
@@ -346,11 +399,20 @@ def get_or_create_batch_sheet(gc, batch_name: str) -> gspread.Worksheet:
 
 
 def fetch_batch_updates(client: zulip.Client, channel: str, topic: str) -> dict:
-    """Fetch today's updates from a specific batch channel."""
+    """Fetch today's updates from a specific batch channel.
+
+    'Today' is defined as 5 AM - 5 AM (next day) to account for late-night work.
+    """
     tz = pytz.timezone(TIMEZONE)
-    start_of_day = datetime.datetime.now(tz).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
+    now = datetime.datetime.now(tz)
+
+    # If current time is before 5 AM, use yesterday's 5 AM as start
+    if now.hour < 5:
+        start_of_day = now.replace(hour=5, minute=0, second=0, microsecond=0) - datetime.timedelta(days=1)
+    else:
+        # Otherwise use today's 5 AM as start
+        start_of_day = now.replace(hour=5, minute=0, second=0, microsecond=0)
+
     start_timestamp = int(start_of_day.timestamp())
 
     log.info("Fetching messages from #%s > %s", channel, topic)
